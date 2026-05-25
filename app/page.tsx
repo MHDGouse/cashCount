@@ -30,9 +30,12 @@ const today = () => { const d = new Date(); return `${String(d.getDate()).padSta
 function DenomRow({ d, c, onChange, i }: { d: number; c: number; onChange: (v: number) => void; i: number }) {
   return (
     <div className="denom-row flex items-center gap-2 py-2.5 px-3 rounded-xl border border-gray-100 bg-white active:bg-gray-50 sm:gap-3 sm:px-4 sm:py-3 sm:rounded-2xl" style={{ animationDelay: `${i * 30}ms`, borderLeft: `3px solid ${DC[d]}` }}>
-      <div className="flex-shrink-0 w-12 h-8 rounded-md flex items-center justify-center text-[10px] font-bold shadow-sm sm:w-16 sm:h-9 sm:text-xs" style={{ background: DB[d], color: DC[d], border: `1px solid ${DC[d]}30` }}>
-        ₹{d >= 1000 ? `${d / 1000}K` : d}
-      </div>
+      <img
+        src={`/images/${d}.jpeg`}
+        alt={`₹${d} note`}
+        className="flex-shrink-0 w-14 h-9 rounded-lg object-cover shadow-sm sm:w-[72px] sm:h-11 sm:rounded-xl"
+        style={{ border: `2px solid ${DC[d]}30` }}
+      />
       <span className="hidden sm:inline w-14 text-right font-mono font-semibold text-gray-700 text-sm">{fmt(d)}</span>
       <span className="text-gray-300 font-light text-base sm:text-lg">×</span>
       <input type="number" min="0" inputMode="numeric" pattern="[0-9]*" value={c === 0 ? '' : c} placeholder="0" onChange={e => onChange(Math.max(0, parseInt(e.target.value) || 0))}
@@ -305,6 +308,18 @@ export default function CashCounter() {
           </div>
         )}
       </main>
+
+      {/* ── Footer ── */}
+      <footer className="max-w-2xl mx-auto w-full px-4 pb-20 pt-6 sm:pb-8 space-y-3">
+        <div className="border-t border-gray-200 pt-4">
+          <p className="text-[10px] leading-relaxed text-gray-400 text-center sm:text-xs">
+            All Indian Rupee currency images used on this site are for illustrative cash-counting purposes only. The copyright and intellectual property rights for the banknote designs belong entirely to the Reserve Bank of India (RBI).
+          </p>
+        </div>
+        <p className="text-[10px] text-gray-400 text-center font-medium sm:text-xs">
+          © 2026 Mhd Gouse. All rights reserved.
+        </p>
+      </footer>
 
       {/* ── Mobile Bottom Tab Bar ── */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-2px_12px_rgba(0,0,0,0.08)] sm:hidden bottom-nav">
