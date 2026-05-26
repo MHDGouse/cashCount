@@ -1,17 +1,10 @@
 import type { Metadata, Viewport } from 'next'
-import { Poppins, JetBrains_Mono } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import './globals.css'
 
-const poppins = Poppins({
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-poppins',
-})
-
-const jetbrains = JetBrains_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-jetbrains',
+  variable: '--font-inter',
 })
 
 export const viewport: Viewport = {
@@ -19,7 +12,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0f1f3d',
+  themeColor: '#0A0E27',
 }
 
 export const metadata: Metadata = {
@@ -27,15 +20,27 @@ export const metadata: Metadata = {
   description: 'Count and manage Indian currency denominations with ease',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'CashCount',
   },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={`${poppins.variable} ${jetbrains.variable} font-sans`}>
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            try {
+              var t = localStorage.getItem('cashcount-theme');
+              if (t === 'light' || t === 'dark') {
+                document.documentElement.setAttribute('data-theme', t);
+              }
+            } catch(e) {}
+          })();
+        `}} />
+      </head>
+      <body className={`${inter.variable} font-sans antialiased`}>
         {children}
       </body>
     </html>
