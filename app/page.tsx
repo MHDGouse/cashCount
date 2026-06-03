@@ -96,28 +96,22 @@ function DenomRow({ d, c, onChange, i }: { d: number; c: number; onChange: (v: n
   )
 }
 
-function HistoryItem({ entry, onDelete }: { entry: Entry; onDelete: () => void }) {
+function HistoryItem({ entry, onDelete, onLoad }: { entry: Entry; onDelete: () => void; onLoad: () => void }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="glass-card overflow-hidden">
       <div className="flex items-center justify-between p-5 cursor-pointer" onClick={() => setOpen(o => !o)}>
         <div>
           <div className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>{entry.date}</div>
-          <div className="text-[13px] font-medium mt-0.5 capitalize" style={{ color: 'var(--text-secondary)' }}>{entry.type}</div>
+          <div className="text-[13px] font-medium mt-0.5 capitalize" style={{ color: 'var(--text-secondary)' }}>{entry.type}{entry.payee && entry.payee !== 'Unnamed' ? ` · ${entry.payee}` : ''}</div>
         </div>
         <div className="flex items-center gap-4">
           <div className={`font-mono font-bold text-lg sm:text-xl ${entry.type === 'debit' ? 'text-red-400' : 'text-[#4ADE80]'}`}>
             {entry.type === 'debit' ? '−' : '+'}₹{fmt(entry.amount)}
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete() }}
-            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-[14px] bg-white/5 text-red-400 hover:bg-white/10 active:scale-95 transition-all"
-            title="Delete entry"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+          <svg className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
       </div>
       {open && (
@@ -133,6 +127,28 @@ function HistoryItem({ entry, onDelete }: { entry: Entry; onDelete: () => void }
               Note: {entry.note}
             </div>
           )}
+          {/* Action buttons */}
+          <div className="flex gap-3 pt-3 mt-1 border-t border-white/5">
+            <button
+              onClick={(e) => { e.stopPropagation(); onLoad() }}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-[14px] transition-all duration-200 active:scale-95"
+              style={{ background: 'var(--accent-gradient, linear-gradient(135deg, #6366F1, #8B5CF6))', color: '#fff', boxShadow: '0 4px 20px rgba(99, 102, 241, 0.3)' }}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Load to Counter
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-semibold text-[14px] bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 active:scale-95 transition-all duration-200"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -175,6 +191,44 @@ export default function CashCounter() {
     localStorage.setItem('cashcount-theme', next)
   }
 
+  // Load shared data from URL on mount
+  // URL format: ?c=500.3-200.5-100.2&t=credit&p=John&n=note&dt=03-06-26&a=1500
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const denomStr = params.get('c')
+    if (denomStr) {
+      try {
+        // Parse compact denomination format: "500.3-200.5-100.2"
+        const newCounts: Record<number, number> = Object.fromEntries(DENOMS.map(d => [d, 0]))
+        denomStr.split('-').forEach(pair => {
+          const [denom, count] = pair.split('.')
+          const d = parseInt(denom), cnt = parseInt(count)
+          if (!isNaN(d) && !isNaN(cnt)) newCounts[d] = cnt
+        })
+        setCounts(newCounts)
+
+        const t = params.get('t') as EntryType | null
+        if (t) setActiveType(t)
+        const p = params.get('p')
+        if (p && p !== 'Unnamed') setPayee(decodeURIComponent(p))
+        const n = params.get('n')
+        if (n) setNote(decodeURIComponent(n))
+        const dt = params.get('dt')
+        if (dt) setDate(dt)
+        const a = params.get('a')
+        if (t === 'online' && a) setOnlineAmt(a)
+
+        setTab('counter')
+        // Clean up the URL without reload
+        window.history.replaceState({}, '', window.location.pathname)
+      } catch (err) {
+        console.error('Failed to load shared data:', err)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Calculator state
   const [calcDisp, setCalcDisp] = useState('0')
   const [calcPrev, setCalcPrev] = useState<number | null>(null)
@@ -205,6 +259,19 @@ export default function CashCounter() {
     }, 2000)
   }
 
+  const loadEntry = (entry: Entry) => {
+    // Populate counter with the history entry's data
+    setCounts({ ...Object.fromEntries(DENOMS.map(d => [d, 0])), ...entry.denominations })
+    setActiveType(entry.type)
+    setPayee(entry.payee === 'Unnamed' ? '' : entry.payee)
+    setNote(entry.note || '')
+    if (entry.type === 'online') setOnlineAmt(String(entry.amount))
+    setDate(entry.date)
+    setTab('counter')
+    // Brief visual feedback: scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const calcInput = (v: string) => { if (calcNew) { setCalcDisp(v); setCalcNew(false) } else setCalcDisp(d => d === '0' ? v : d + v) }
   const calcOperator = (op: string) => { setCalcPrev(parseFloat(calcDisp)); setCalcOp(op); setCalcNew(true) }
   const calcEquals = () => {
@@ -221,6 +288,20 @@ export default function CashCounter() {
     const denomLines = DENOMS.filter(d => (counts[d] || 0) > 0)
       .map(d => `${fmt(d)} × ${counts[d]} = ${fmt(d * counts[d])}`)
       .join('\n')
+
+    // Build compact URL: ?c=500.3-200.5&t=credit&p=John&dt=03-06-26
+    const denomParts = DENOMS.filter(d => (counts[d] || 0) > 0)
+      .map(d => `${d}.${counts[d]}`)
+      .join('-')
+    const urlParams = new URLSearchParams()
+    if (denomParts) urlParams.set('c', denomParts)
+    urlParams.set('t', activeType)
+    if (payee) urlParams.set('p', payee)
+    if (note) urlParams.set('n', note)
+    urlParams.set('dt', date)
+    if (activeType === 'online') urlParams.set('a', String(total))
+    const editUrl = `https://cash-count.vercel.app/?${urlParams.toString()}`
+
     const msg = [
       `*CashCount Summary*`,
       `*Date*: ${date}`,
@@ -231,8 +312,12 @@ export default function CashCounter() {
       `*Total*: ₹${fmt(total)}`,
       `*In words*: ${toWords(total)}`,
       '',
-      `Shared from CashCount`,
-      `https://cash-count.vercel.app/`
+      `✏️ Edit → ${editUrl}`,
+      '',
+      `_Shared from CashCount_`,
+      '',
+      `App link → https://cash-count.vercel.app/`,
+      ' ',
     ].join('\n')
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
   }
@@ -404,7 +489,7 @@ export default function CashCounter() {
               </div>
             ) : (
               <div className="space-y-4">
-                {history.map(e => <HistoryItem key={e.id} entry={e} onDelete={() => setHistory(p => p.filter(x => x.id !== e.id))} />)}
+                {history.map(e => <HistoryItem key={e.id} entry={e} onDelete={() => setHistory(p => p.filter(x => x.id !== e.id))} onLoad={() => loadEntry(e)} />)}
               </div>
             )}
           </div>
