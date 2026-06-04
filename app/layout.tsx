@@ -18,6 +18,9 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'CashCount — Indian Rupee Counter',
   description: 'Count and manage Indian currency denominations with ease',
+  icons: {
+    icon: '/icon/icon2.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -29,7 +32,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `
+        <script dangerouslySetInnerHTML={{
+          __html: `
           (function() {
             try {
               var t = localStorage.getItem('cashcount-theme');
