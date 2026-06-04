@@ -234,6 +234,7 @@ export default function CashCounter() {
   const [calcPrev, setCalcPrev] = useState<number | null>(null)
   const [calcOp, setCalcOp] = useState<string | null>(null)
   const [calcNew, setCalcNew] = useState(true)
+  const [calcTape, setCalcTape] = useState<{ value: string; op?: string; result?: number }[]>([])
 
   const cashTotal = DENOMS.reduce((s, d) => s + d * (counts[d] || 0), 0)
   const total = activeType === 'online' ? (parseFloat(onlineAmt) || 0) : cashTotal
@@ -273,14 +274,34 @@ export default function CashCounter() {
   }
 
   const calcInput = (v: string) => { if (calcNew) { setCalcDisp(v); setCalcNew(false) } else setCalcDisp(d => d === '0' ? v : d + v) }
-  const calcOperator = (op: string) => { setCalcPrev(parseFloat(calcDisp)); setCalcOp(op); setCalcNew(true) }
+  const calcOperator = (op: string) => {
+    if (calcPrev !== null && calcOp && !calcNew) {
+      // Chain operations: evaluate previous, then set new op
+      const c = parseFloat(calcDisp); let r = 0
+      if (calcOp === '+') r = calcPrev + c; else if (calcOp === '−') r = calcPrev - c
+      else if (calcOp === '×') r = calcPrev * c; else if (calcOp === '÷') r = calcPrev / c
+      r = parseFloat(r.toFixed(10))
+      setCalcTape(t => [...t, { value: calcDisp, op: calcOp }])
+      setCalcDisp(String(r)); setCalcPrev(r); setCalcOp(op); setCalcNew(true)
+    } else {
+      setCalcTape(t => [...t, { value: calcDisp, op }])
+      setCalcPrev(parseFloat(calcDisp)); setCalcOp(op); setCalcNew(true)
+    }
+  }
   const calcEquals = () => {
     if (calcPrev === null || !calcOp) return
     const c = parseFloat(calcDisp); let r = 0
     if (calcOp === '+') r = calcPrev + c; else if (calcOp === '−') r = calcPrev - c
     else if (calcOp === '×') r = calcPrev * c; else if (calcOp === '÷') r = calcPrev / c
-    setCalcDisp(String(parseFloat(r.toFixed(10)))); setCalcPrev(null); setCalcOp(null); setCalcNew(true)
+    r = parseFloat(r.toFixed(10))
+    setCalcTape(t => [...t, { value: calcDisp, op: '=' }])
+    setCalcDisp(String(r)); setCalcPrev(null); setCalcOp(null); setCalcNew(true)
   }
+  // Build expression string from tape: "4,840 + 120 / 30"
+  const calcExpression = calcTape.map(e => {
+    const num = fmt(parseFloat(e.value))
+    return e.op && e.op !== '=' ? `${num} ${e.op}` : num
+  }).join(' ')
 
   const calcBtns = [['AC', '+/−', '%', '÷'], ['7', '8', '9', '×'], ['4', '5', '6', '−'], ['1', '2', '3', '+'], ['0', '.', '=']]
 
@@ -498,10 +519,22 @@ export default function CashCounter() {
         {/* ── CALCULATOR TAB ── */}
         {tab === 'calculator' && (
           <div className="animate-slide-up glass-card overflow-hidden max-w-[400px] mx-auto">
-            <div className="calc-display px-6 py-10 text-right">
-              <p className="text-lg h-6 font-medium" style={{ color: 'var(--text-secondary)' }}>{calcPrev !== null ? `${calcPrev} ${calcOp}` : ''}</p>
-              <p className="font-bold text-[56px] mt-2 truncate tracking-tight" style={{ color: 'var(--text-primary)' }}>{calcDisp}</p>
+            {/* Display */}
+            <div className="calc-display px-6 pt-6 pb-6 text-right" style={{ minHeight: '130px' }}>
+              {/* Expression line: "4,840 + 120 / 30" */}
+              {calcExpression && (
+                <p className="text-[20px] font-semibold font-mono mb-2 truncate" style={{ color: 'var(--text-secondary)', opacity: 0.7 }}>
+                  {calcExpression}{!calcNew ? ` ${fmt(parseFloat(calcDisp))}` : ''}
+                </p>
+              )}
+
+              {/* Result: "= 4,844" */}
+              <p className="font-bold text-[48px] truncate tracking-tight leading-none" style={{ color: 'var(--text-primary)' }}>
+                {calcTape.length > 0 ? '= ' : ''}{fmt(parseFloat(calcDisp) || 0)}
+              </p>
             </div>
+
+            {/* Buttons */}
             <div className="p-5 space-y-4">
               {calcBtns.map((row, ri) => (
                 <div key={ri} className="grid gap-4 grid-cols-4">
@@ -515,7 +548,7 @@ export default function CashCounter() {
                       <button
                         key={btn}
                         onClick={() => {
-                          if (btn === 'AC') { setCalcDisp('0'); setCalcPrev(null); setCalcOp(null); setCalcNew(true) }
+                          if (btn === 'AC') { setCalcDisp('0'); setCalcPrev(null); setCalcOp(null); setCalcNew(true); setCalcTape([]) }
                           else if (btn === '+/−') setCalcDisp(d => String(-parseFloat(d)))
                           else if (btn === '%') setCalcDisp(d => String(parseFloat(d) / 100))
                           else if (btn === '=') calcEquals()
