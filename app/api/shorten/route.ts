@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if URL was already shortened
-    for (const [code, entry] of urlStore.entries()) {
+    for (const [code, entry] of Array.from(urlStore.entries())) {
       if (entry.originalUrl === url) {
         const origin = request.nextUrl.origin
         return NextResponse.json({
