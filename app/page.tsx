@@ -284,7 +284,8 @@ export default function CashCounter() {
       setCalcTape(t => [...t, { value: calcDisp, op: calcOp }])
       setCalcDisp(String(r)); setCalcPrev(r); setCalcOp(op); setCalcNew(true)
     } else {
-      setCalcTape(t => [...t, { value: calcDisp, op }])
+      // Reset tape when starting a new calculation (e.g. after pressing =)
+      setCalcTape([{ value: calcDisp, op }])
       setCalcPrev(parseFloat(calcDisp)); setCalcOp(op); setCalcNew(true)
     }
   }
@@ -303,7 +304,21 @@ export default function CashCounter() {
     return e.op && e.op !== '=' ? `${num} ${e.op}` : num
   }).join(' ')
 
-  const calcBtns = [['AC', '+/−', '%', '÷'], ['7', '8', '9', '×'], ['4', '5', '6', '−'], ['1', '2', '3', '+'], ['0', '.', '=']]
+  // Live result: evaluate pending operation as user types
+  const calcLiveResult = (() => {
+    if (calcPrev !== null && calcOp && !calcNew) {
+      const c = parseFloat(calcDisp)
+      let r = 0
+      if (calcOp === '+') r = calcPrev + c
+      else if (calcOp === '−') r = calcPrev - c
+      else if (calcOp === '×') r = calcPrev * c
+      else if (calcOp === '÷') r = c !== 0 ? calcPrev / c : 0
+      return parseFloat(r.toFixed(10))
+    }
+    return null
+  })()
+
+  const calcBtns = [['AC', '⌫', '%', '÷'], ['7', '8', '9', '×'], ['4', '5', '6', '−'], ['1', '2', '3', '+'], ['0', '.', '=']]
 
   const handleWhatsApp = () => {
     const denomLines = DENOMS.filter(d => (counts[d] || 0) > 0)
@@ -521,16 +536,16 @@ export default function CashCounter() {
           <div className="animate-slide-up glass-card overflow-hidden max-w-[400px] mx-auto">
             {/* Display */}
             <div className="calc-display px-6 pt-6 pb-6 text-right" style={{ minHeight: '130px' }}>
-              {/* Expression line: "4,840 + 120 / 30" */}
-              {calcExpression && (
+              {/* Expression line */}
+              {(calcExpression || (calcPrev !== null && calcOp)) && (
                 <p className="text-[20px] font-semibold font-mono mb-2 truncate" style={{ color: 'var(--text-secondary)', opacity: 0.7 }}>
                   {calcExpression}{!calcNew ? ` ${fmt(parseFloat(calcDisp))}` : ''}
                 </p>
               )}
 
-              {/* Result: "= 4,844" */}
+              {/* Result: show live result when available, otherwise current display */}
               <p className="font-bold text-[48px] truncate tracking-tight leading-none" style={{ color: 'var(--text-primary)' }}>
-                {calcTape.length > 0 ? '= ' : ''}{fmt(parseFloat(calcDisp) || 0)}
+                {calcLiveResult !== null ? `= ${fmt(calcLiveResult)}` : calcTape.length > 0 ? `= ${fmt(parseFloat(calcDisp) || 0)}` : fmt(parseFloat(calcDisp) || 0)}
               </p>
             </div>
 
@@ -539,7 +554,7 @@ export default function CashCounter() {
               {calcBtns.map((row, ri) => (
                 <div key={ri} className="grid gap-4 grid-cols-4">
                   {row.map(btn => {
-                    const isOp = '÷×−+='.includes(btn); const isFn = ['AC', '+/−', '%'].includes(btn); const isZero = btn === '0'
+                    const isOp = '÷×−+='.includes(btn); const isFn = ['AC', '⌫', '%'].includes(btn); const isZero = btn === '0'
                     let btnStyle = 'calc-btn-num'
                     if (isOp) btnStyle = btn === '=' ? 'btn-primary' : 'calc-btn-op'
                     if (isFn) btnStyle = 'calc-btn-fn'
@@ -549,7 +564,7 @@ export default function CashCounter() {
                         key={btn}
                         onClick={() => {
                           if (btn === 'AC') { setCalcDisp('0'); setCalcPrev(null); setCalcOp(null); setCalcNew(true); setCalcTape([]) }
-                          else if (btn === '+/−') setCalcDisp(d => String(-parseFloat(d)))
+                          else if (btn === '⌫') { setCalcDisp(d => d.length <= 1 ? '0' : d.slice(0, -1)); setCalcNew(false) }
                           else if (btn === '%') setCalcDisp(d => String(parseFloat(d) / 100))
                           else if (btn === '=') calcEquals()
                           else if (isOp) calcOperator(btn)
